@@ -1,6 +1,8 @@
 import sys, pygame
 from time import time
 
+###
+# Inicialización
 pygame.init()
 
 size = width, height = 640, 480
