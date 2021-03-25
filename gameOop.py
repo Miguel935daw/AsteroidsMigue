@@ -15,13 +15,13 @@ class Game:
     def __init__(self, width, height):
         self.size = self.width, self.height = width, height
         pygame.init()
-        self.ball = self.resources()
+        self._resources()
         self.ball_rect = self.ball.get_rect()
-        self.screen = pygame.display.set_mode(self.size)
+        self.__screen = pygame.display.set_mode(self.size)
         self.play()
 
-    def resources(self):
-        return pygame.image.load("joker.png")
+    def _resources(self):
+        self.ball = pygame.image.load("joker.png")
 
     def play(self):
         while True:
@@ -36,8 +36,8 @@ class Game:
             if self.ball_rect.top < 0 or self.ball_rect.bottom > self.height:
                 self.speed[1] = -self.speed[1]
 
-            self.screen.fill(self.black)
-            self.screen.blit(self.ball, self.ball_rect)
+            self.__screen.fill(self.black)
+            self.__screen.blit(self.ball, self.ball_rect)
             pygame.display.flip()
             # Bucle de espera
             while (self.time_millis() - initial_time) < 1000 // 60:
@@ -45,7 +45,9 @@ class Game:
 
     def time_millis(self):
         return round(time() * 1000)
+
+
 ###
 # public static void main(String[] args)
 if __name__ == '__main__':
-    Game(800, 600)
+    myGame = Game(800, 600)
