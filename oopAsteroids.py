@@ -3,7 +3,7 @@
 import pygame
 from pygame.math import Vector2
 from pygame.transform import rotozoom
-from random import randrange
+from random import randrange, choice
 from time import time
 
 
@@ -67,6 +67,7 @@ class Starship(GameObject):
 class Asteroids:
     SIZE = (800, 600) # Display (width, height)
     MAX_ASTEROIDS = 10
+    SPEEDS = [-3, -2, -1, 1, 2, 3]
 
     def __init__(self): # public Asteroids() { ... } en Java - Constructor
         self._init_game()
@@ -81,7 +82,7 @@ class Asteroids:
         self._starship = Starship(Vector2(self.SIZE[0]//2, self.SIZE[1]//2))
         self._asteroids = [GameObject(Vector2(randrange(0, self.SIZE[0]), randrange(0, self.SIZE[1])),
                                       self._asteroid_image,
-                                      Vector2(randrange(-3, 3), randrange(-3, 3)))
+                                      Vector2(choice(self.SPEEDS), choice(self.SPEEDS)))
                            for _ in range(self.MAX_ASTEROIDS)]
 
     def _handle_input(self):
