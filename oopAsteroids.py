@@ -67,11 +67,15 @@ class GameObject:
 
 class Asteroid(GameObject):
     SPEEDS = [-2, -1.5, -1, 0.5, 0.5, 1, 1.5, 2]
+    MIN_DISTANCE = 10
 
-    def __init__(self, screen_size, position=None, velocity=None):
+    def __init__(self, screen_size, starship, position=None, velocity=None):
+        while position is None:
+            position = Vector2(randrange(0, screen_size.x), randrange(0, screen_size.y))
+            if position.distance_to(starship.position) < starship.radius * self.MIN_DISTANCE:
+                position = None
         super().__init__(screen_size,
-                         position if position is not None
-                         else Vector2(randrange(0, screen_size.x), randrange(0, screen_size.y)),
+                         position,
                          load_image("asteroid"),
                          velocity if velocity is not None
                          else Vector2(choice(self.SPEEDS), choice(self.SPEEDS)))
@@ -124,22 +128,28 @@ class Starship(GameObject):
 
 
 class Asteroids:
-    SIZE = Vector2(800, 600)  # Display (width, height)
-    MAX_ASTEROIDS = 6
+    SIZE = Vector2(800,  600)  # Display (width, height)
+    MAX_ASTEROIDS = 50
 
     def __init__(self):  # public Asteroids() { ... } en Java - Constructor
         self._init_game()
 
     def _init_game(self):
         pygame.init()
+        pygame.mixer.init()
+        pygame.mixer.music.load("music/tota_pop.ogg")
+        pygame.mixer.music.play()
         pygame.display.set_caption("Rocas caleteras")
         # El _ (underscore) es para hacer el atributo protected
         self._font = pygame.font.Font(None, 64)
         self._screen = pygame.display.set_mode([int(value) for value in self.SIZE.xy])
         self._background = load_image("background")
+        self._init_objects()
+
+    def _init_objects(self):
         self._starship = Starship(self.SIZE)
         self._bullets = []
-        self._asteroids = [Asteroid(self.SIZE)
+        self._asteroids = [Asteroid(self.SIZE, self._starship)
                            for _ in range(self.MAX_ASTEROIDS)]
 
     def _handle_input(self):
@@ -195,23 +205,30 @@ class Asteroids:
     def mainloop(self):
         clock = pygame.time.Clock()
         while True:
-            self._handle_input()
-            # update
-            self._update()
-            # draw (double buffer by PyGame)
-            self._draw()
-            # time sync 60fps
-            clock.tick(60)
-            if self._starship.is_disabled() or not self._asteroids:
-                break
-        message = "Game Over" if self._starship.is_disabled() else "Victory"
-        print_text(self._screen, message, self._font)
-        while True:
-            pygame.display.flip()
-            clock.tick(60)
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE):
-                    quit()
+            while True:
+                self._handle_input()
+                # update
+                self._update()
+                # draw (double buffer by PyGame)
+                self._draw()
+                # time sync 60fps
+                clock.tick(60)
+                if self._starship.is_disabled() or not self._asteroids:
+                    break
+            message = "Game Over" if self._starship.is_disabled() else "Victory"
+            print_text(self._screen, message, self._font)
+            while True:
+                pygame.display.flip()
+                clock.tick(60)
+                restart = False
+                for event in pygame.event.get():
+                    if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE):
+                        quit()
+                    elif event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
+                        self._init_objects()
+                        restart = True
+                if restart:
+                    break
 
 
 if __name__ == '__main__':
