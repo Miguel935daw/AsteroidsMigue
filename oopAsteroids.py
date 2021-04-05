@@ -1,5 +1,5 @@
 ######
-## Version del tutorial de Real Python: https://realpython.com/asteroids-game-python/
+# Version del tutorial de Real Python: https://realpython.com/asteroids-game-python/
 import pygame
 from pygame.math import Vector2
 from pygame.transform import rotozoom
@@ -21,7 +21,7 @@ def print_text(surface, text, font, color=pygame.Color("tomato")):
 
 class GameObject:
     def __init__(self, screen_size, position, sprite, velocity):
-        self._screen_size = screen_size
+        self.screen_size = screen_size
         self.position = Vector2(position)
         self.sprite = sprite
         self.radius = sprite.get_width() / 2
@@ -35,13 +35,13 @@ class GameObject:
     def update(self):
         self.position = self.position + self.velocity
         if self.position.x < -self.radius:
-            self.position.x += self._screen_size.x + self.radius * 2
-        elif self.position.x > self._screen_size.x + self.radius:
-            self.position.x -= self._screen_size.x + self.radius * 2
+            self.position.x += self.screen_size.x + self.radius * 2
+        elif self.position.x > self.screen_size.x + self.radius:
+            self.position.x -= self.screen_size.x + self.radius * 2
         elif self.position.y < -self.radius:
-            self.position.y += self._screen_size.y + self.radius * 2
-        elif self.position.y > self._screen_size.y + self.radius:
-            self.position.y -= self._screen_size.y + self.radius * 2
+            self.position.y += self.screen_size.y + self.radius * 2
+        elif self.position.y > self.screen_size.y + self.radius:
+            self.position.y -= self.screen_size.y + self.radius * 2
 
     def collides_with(self, other_obj):
         distance = self.position.distance_to(other_obj.position)
@@ -55,18 +55,18 @@ class GameObject:
         return self._disabled
 
     def is_out_of_bounds(self):
-        return self.position.x < -self.radius or self.position.x > self._screen_size.x + self.radius or \
-               self.position.y < -self.radius or self.position.y > self._screen_size.y + self.radius
+        return self.position.x < -self.radius or self.position.x > self.screen_size.x + self.radius or \
+               self.position.y < -self.radius or self.position.y > self.screen_size.y + self.radius
 
 
 class Asteroid(GameObject):
     SPEEDS = [-2, -1.5, -1, 0.5, 0.5, 1, 1.5, 2]
     MIN_DISTANCE = 10
 
-    def __init__(self, screen_size, starship, position=None, velocity=None):
+    def __init__(self, screen_size, star_ship, position=None, velocity=None):
         while position is None:
             position = Vector2(randrange(0, screen_size.x), randrange(0, screen_size.y))
-            if position.distance_to(starship.position) < starship.radius * self.MIN_DISTANCE:
+            if position.distance_to(star_ship.position) < star_ship.radius * self.MIN_DISTANCE:
                 position = None
         super().__init__(screen_size,
                          position,
@@ -83,30 +83,37 @@ class Asteroid(GameObject):
 class Bullet(GameObject):
     BULLET_SPEED = 6
 
-    def __init__(self, starship):
-        super().__init__(starship._screen_size,
-                         starship.position + starship.direction * starship.radius,
+    def __init__(self, star_ship):
+        super().__init__(star_ship.screen_size,
+                         star_ship.position + star_ship.direction * star_ship.radius,
                          load_image("bullet"),
-                         starship.direction * self.BULLET_SPEED)
+                         star_ship.direction * self.BULLET_SPEED)
 
     def update(self):
         self.position = self.position + self.velocity
 
     def is_disabled(self):
-        return self._disabled or self.is_outbounds()
+        return self._disabled or self.is_out_of_bounds()
 
 
-class Starship(GameObject):
+class StarShip(GameObject):
     MANEUVERABILITY = 3
     FORCE = 0.1
     SPEED_LIMIT = 3
+    SPRITES = {"normal": "star_ship.v2",
+               "thrust": "star_ship.v2.thrust",
+               "brake": "star_ship.v2.brake",
+               }
 
     def __init__(self, screen_size):
-        super().__init__(screen_size, screen_size // 2, load_image("starship.v2"), Vector2(0))
+        super().__init__(screen_size,
+                         screen_size // 2,
+                         load_image(self.SPRITES.get("normal")),
+                         Vector2(0))
         self.direction = Vector2(0, -1)
-        self._thrust_sprite = load_image("starship.v2.thrust")
-        self._brake_sprite = load_image("starship.v2.brake")
-        self._accel = 0
+        self._thrust_sprite = load_image(self.SPRITES.get("thrust"))
+        self._brake_sprite = load_image(self.SPRITES.get("brake"))
+        self._acceleration = 0
 
     def rotate(self, clockwise=False):
         sign = 1 if clockwise else -1
@@ -114,8 +121,8 @@ class Starship(GameObject):
         self.direction.rotate_ip(angle)
 
     def thrust(self, brake=False):
-        self._accel = -1 if brake else 1
-        self.velocity += self.direction * self.FORCE * self._accel
+        self._acceleration = -1 if brake else 1
+        self.velocity += self.direction * self.FORCE * self._acceleration
         if abs(self.velocity.x) >= self.SPEED_LIMIT:
             self.velocity.x = copysign(1, self.velocity.x) * self.SPEED_LIMIT
         if abs(self.velocity.y) >= self.SPEED_LIMIT:
@@ -123,16 +130,16 @@ class Starship(GameObject):
 
     def draw(self, surface):
         real_sprite = self.sprite
-        if self._accel < 0:
+        if self._acceleration < 0:
             real_sprite = self._brake_sprite
-        elif self._accel > 0:
+        elif self._acceleration > 0:
             real_sprite = self._thrust_sprite
         angle = self.direction.angle_to(Vector2(0, -1))
         rotated_surface = rotozoom(real_sprite, angle, 1.0)
         rotated_surface_size = Vector2(rotated_surface.get_size())
         blit_position = self.position - rotated_surface_size * 0.5
         surface.blit(rotated_surface, blit_position)
-        self._accel = 0
+        self._acceleration = 0
 
 
 class Asteroids:
@@ -147,17 +154,17 @@ class Asteroids:
         pygame.mixer.init()
         pygame.mixer.music.load("music/tota_pop.ogg")
         pygame.mixer.music.play()
-        pygame.display.set_caption("Rocas caleteras")
-        # El _ (underscore) es para hacer el atributo protected
+        pygame.display.set_caption("Caleterian Rocks")
+        # when attribute name starts with _ (underscore), marks that attribute as protected
         self._font = pygame.font.Font(None, 64)
         self._screen = pygame.display.set_mode([int(value) for value in self.SIZE.xy])
         self._background = load_image("background")
         self._init_objects()
 
     def _init_objects(self):
-        self._starship = Starship(self.SIZE)
+        self._star_ship = StarShip(self.SIZE)
         self._bullets = []
-        self._asteroids = [Asteroid(self.SIZE, self._starship)
+        self._asteroids = [Asteroid(self.SIZE, self._star_ship)
                            for _ in range(self.MAX_ASTEROIDS)]
 
     def _handle_input(self):
@@ -165,18 +172,18 @@ class Asteroids:
             if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE):
                 quit()
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
-                self._bullets.append(Bullet(self._starship))
+                self._bullets.append(Bullet(self._star_ship))
 
         is_key_pressed = pygame.key.get_pressed()
 
         if is_key_pressed[pygame.K_RIGHT]:
-            self._starship.rotate(clockwise=True)
+            self._star_ship.rotate(clockwise=True)
         elif is_key_pressed[pygame.K_LEFT]:
-            self._starship.rotate(clockwise=False)
+            self._star_ship.rotate(clockwise=False)
         elif is_key_pressed[pygame.K_UP]:
-            self._starship.thrust()
+            self._star_ship.thrust()
         elif is_key_pressed[pygame.K_DOWN]:
-            self._starship.thrust(brake=True)
+            self._star_ship.thrust(brake=True)
 
     def _draw(self):
         self._screen.blit(self._background, (0, 0))
@@ -184,7 +191,7 @@ class Asteroids:
             asteroid.draw(self._screen)
         for bullet in self._bullets:
             bullet.draw(self._screen)
-        self._starship.draw(self._screen)
+        self._star_ship.draw(self._screen)
         pygame.display.flip()
 
     def _update(self):
@@ -192,7 +199,7 @@ class Asteroids:
             asteroid.update()
         for bullet in self._bullets:
             bullet.update()
-        self._starship.update()
+        self._star_ship.update()
         # collisions
         for asteroid in self._asteroids[:]:
             destroyed = False
@@ -202,8 +209,8 @@ class Asteroids:
                     self._bullets.remove(bullet)
                     destroyed = True
                     break
-            if not destroyed and asteroid.collides_with(self._starship):
-                self._starship.disable()
+            if not destroyed and asteroid.collides_with(self._star_ship):
+                self._star_ship.disable()
                 break
         # clear out of bounds bullets
         for bullet in self._bullets[:]:
@@ -221,9 +228,9 @@ class Asteroids:
                 self._draw()
                 # time sync 60fps
                 clock.tick(60)
-                if self._starship.is_disabled() or not self._asteroids:
+                if self._star_ship.is_disabled() or not self._asteroids:
                     break
-            message = "Game Over" if self._starship.is_disabled() else "Victory"
+            message = "Game Over" if self._star_ship.is_disabled() else "Victory"
             print_text(self._screen, message, self._font)
             while True:
                 pygame.display.flip()
