@@ -64,6 +64,10 @@ class Starship(GameObject):
         surface.blit(rotated_surface, blit_position)
 
 
+class Asteroid(GameObject):
+    pass
+
+
 class Asteroids:
     SIZE = (800, 600) # Display (width, height)
     MAX_ASTEROIDS = 10
