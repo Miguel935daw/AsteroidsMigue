@@ -4,7 +4,6 @@ import pygame
 from pygame.math import Vector2
 from pygame.transform import rotozoom
 from random import randrange, choice
-from time import time
 from math import copysign
 
 
@@ -43,11 +42,6 @@ class GameObject:
             self.position.y += self._screen_size.y + self.radius * 2
         elif self.position.y > self._screen_size.y + self.radius:
             self.position.y -= self._screen_size.y + self.radius * 2
-        # TODO: Control asteroid collision
-        # for other_asteroid in all_asteroids:
-        #     if other_asteroid.position != self.position:
-        #         if self.collides_with(other_asteroid):
-        #             self.velocity = - self.velocity
 
     def collides_with(self, other_obj):
         distance = self.position.distance_to(other_obj.position)
@@ -76,9 +70,14 @@ class Asteroid(GameObject):
                 position = None
         super().__init__(screen_size,
                          position,
-                         load_image("asteroid"),
+                         load_image("asteroid.v2"),
                          velocity if velocity is not None
                          else Vector2(choice(self.SPEEDS), choice(self.SPEEDS)))
+        # TODO: Control asteroid collision
+        # for other_asteroid in all_asteroids:
+        #     if other_asteroid.position != self.position:
+        #         if self.collides_with(other_asteroid):
+        #             self.velocity = - self.velocity
 
 
 class Bullet(GameObject):
@@ -103,8 +102,11 @@ class Starship(GameObject):
     SPEED_LIMIT = 3
 
     def __init__(self, screen_size):
-        super().__init__(screen_size, screen_size // 2, load_image("starship"), Vector2(0))
+        super().__init__(screen_size, screen_size // 2, load_image("starship.v2"), Vector2(0))
         self.direction = Vector2(0, -1)
+        self._thrust_sprite = load_image("starship.v2.thrust")
+        self._brake_sprite = load_image("starship.v2.brake")
+        self._accel = 0
 
     def rotate(self, clockwise=False):
         sign = 1 if clockwise else -1
@@ -112,24 +114,30 @@ class Starship(GameObject):
         self.direction.rotate_ip(angle)
 
     def thrust(self, brake=False):
-        accel = -1 if brake else 1
-        self.velocity += self.direction * self.FORCE * accel
+        self._accel = -1 if brake else 1
+        self.velocity += self.direction * self.FORCE * self._accel
         if abs(self.velocity.x) >= self.SPEED_LIMIT:
             self.velocity.x = copysign(1, self.velocity.x) * self.SPEED_LIMIT
         if abs(self.velocity.y) >= self.SPEED_LIMIT:
             self.velocity.y = copysign(1, self.velocity.y) * self.SPEED_LIMIT
 
     def draw(self, surface):
+        real_sprite = self.sprite
+        if self._accel < 0:
+            real_sprite = self._brake_sprite
+        elif self._accel > 0:
+            real_sprite = self._thrust_sprite
         angle = self.direction.angle_to(Vector2(0, -1))
-        rotated_surface = rotozoom(self.sprite, angle, 1.0)
+        rotated_surface = rotozoom(real_sprite, angle, 1.0)
         rotated_surface_size = Vector2(rotated_surface.get_size())
         blit_position = self.position - rotated_surface_size * 0.5
         surface.blit(rotated_surface, blit_position)
+        self._accel = 0
 
 
 class Asteroids:
     SIZE = Vector2(800,  600)  # Display (width, height)
-    MAX_ASTEROIDS = 50
+    MAX_ASTEROIDS = 5
 
     def __init__(self):  # public Asteroids() { ... } en Java - Constructor
         self._init_game()
