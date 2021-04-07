@@ -2,7 +2,7 @@
 # Version del tutorial de Real Python: https://realpython.com/asteroids-game-python/
 import pygame
 from pygame.math import Vector2
-from pygame.transform import rotozoom
+from pygame.transform import rotozoom, smoothscale
 from random import randrange, choice
 from math import copysign
 
@@ -34,6 +34,7 @@ class GameObject:
 
     def update(self):
         self.position = self.position + self.velocity
+        # manage out of bounds
         if self.position.x < -self.radius:
             self.position.x += self.screen_size.x + self.radius * 2
         elif self.position.x > self.screen_size.x + self.radius:
@@ -61,7 +62,7 @@ class GameObject:
 
 class Asteroid(GameObject):
     SPEEDS = [-2, -1.5, -1, 0.5, 0.5, 1, 1.5, 2]
-    MIN_DISTANCE = 10
+    MIN_DISTANCE = 20
 
     def __init__(self, screen_size, star_ship, position=None, velocity=None):
         while position is None:
@@ -73,11 +74,6 @@ class Asteroid(GameObject):
                          load_image("asteroid.v2"),
                          velocity if velocity is not None
                          else Vector2(choice(self.SPEEDS), choice(self.SPEEDS)))
-        # TODO: Control asteroid collision
-        # for other_asteroid in all_asteroids:
-        #     if other_asteroid.position != self.position:
-        #         if self.collides_with(other_asteroid):
-        #             self.velocity = - self.velocity
 
 
 class Bullet(GameObject):
@@ -143,8 +139,13 @@ class StarShip(GameObject):
 
 
 class Asteroids:
-    SIZE = Vector2(800,  600)  # Display (width, height)
-    MAX_ASTEROIDS = 5
+    SIZE = Vector2(1024, 768)  # Display (width, height)
+    MAX_ASTEROIDS = 15
+    MUSIC = "music/tota_pop.ogg"
+    WINDOW_TITLE = "Albert[A]steroids"
+    BACKGROUND = "class_diagram"
+    VICTORY_TEXT = "Victory!!!!!!!!!"
+    GAMEOVER_TEXT = "Game Over"
 
     def __init__(self):  # public Asteroids() { ... } en Java - Constructor
         self._init_game()
@@ -152,13 +153,17 @@ class Asteroids:
     def _init_game(self):
         pygame.init()
         pygame.mixer.init()
-        pygame.mixer.music.load("music/tota_pop.ogg")
-        pygame.mixer.music.play()
-        pygame.display.set_caption("Caleterian Rocks")
+        pygame.mixer.music.load(self.MUSIC)
+        # loops=-1 for infinite playing
+        #pygame.mixer.music.play(loops=-1)
+        pygame.display.set_caption(self.WINDOW_TITLE)
         # when attribute name starts with _ (underscore), marks that attribute as protected
         self._font = pygame.font.Font(None, 64)
+        # set window size
         self._screen = pygame.display.set_mode([int(value) for value in self.SIZE.xy])
-        self._background = load_image("background")
+        self._background = load_image(self.BACKGROUND)
+        # Background scale
+        self._background = smoothscale(self._background, [int(value) for value in self.SIZE.xy])
         self._init_objects()
 
     def _init_objects(self):
@@ -171,11 +176,13 @@ class Asteroids:
         for event in pygame.event.get():
             if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE):
                 quit()
+            # shoot when press space
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
                 self._bullets.append(Bullet(self._star_ship))
 
         is_key_pressed = pygame.key.get_pressed()
 
+        # control star ship movement
         if is_key_pressed[pygame.K_RIGHT]:
             self._star_ship.rotate(clockwise=True)
         elif is_key_pressed[pygame.K_LEFT]:
@@ -221,6 +228,7 @@ class Asteroids:
         clock = pygame.time.Clock()
         while True:
             while True:
+                # manage input from keyboard
                 self._handle_input()
                 # update
                 self._update()
@@ -228,9 +236,11 @@ class Asteroids:
                 self._draw()
                 # time sync 60fps
                 clock.tick(60)
+                # when self._asteroids is empty, self._asteroids == False
                 if self._star_ship.is_disabled() or not self._asteroids:
                     break
-            message = "Game Over" if self._star_ship.is_disabled() else "Victory"
+            # process endgame or restart
+            message = self.GAMEOVER_TEXT if self._star_ship.is_disabled() else self.VICTORY_TEXT
             print_text(self._screen, message, self._font)
             while True:
                 pygame.display.flip()
