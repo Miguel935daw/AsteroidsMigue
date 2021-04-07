@@ -138,10 +138,6 @@ class StarShip(GameObject):
         self._acceleration = 0
 
 
-class Asteroid(GameObject):
-    pass
-
-
 class Asteroids:
     SIZE = Vector2(1024, 768)  # Display (width, height)
     MAX_ASTEROIDS = 15
@@ -149,7 +145,7 @@ class Asteroids:
     WINDOW_TITLE = "Albert[A]steroids"
     BACKGROUND = "class_diagram"
     VICTORY_TEXT = "Victory!!!!!!!!!"
-    GAMEOVER_TEXT = "Game Over"
+    GAME_OVER_TEXT = "Game Over"
 
     def __init__(self):  # public Asteroids() { ... } en Java - Constructor
         self._init_game()
@@ -159,7 +155,7 @@ class Asteroids:
         pygame.mixer.init()
         pygame.mixer.music.load(self.MUSIC)
         # loops=-1 for infinite playing
-        #pygame.mixer.music.play(loops=-1)
+        pygame.mixer.music.play(loops=-1)
         pygame.display.set_caption(self.WINDOW_TITLE)
         # when attribute name starts with _ (underscore), marks that attribute as protected
         self._font = pygame.font.Font(None, 64)
@@ -244,7 +240,7 @@ class Asteroids:
                 if self._star_ship.is_disabled() or not self._asteroids:
                     break
             # process endgame or restart
-            message = self.GAMEOVER_TEXT if self._star_ship.is_disabled() else self.VICTORY_TEXT
+            message = self.GAME_OVER_TEXT if self._star_ship.is_disabled() else self.VICTORY_TEXT
             print_text(self._screen, message, self._font)
             while True:
                 pygame.display.flip()
