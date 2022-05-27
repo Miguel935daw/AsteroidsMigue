@@ -1,5 +1,6 @@
 ######
 # Version del tutorial de Real Python: https://realpython.com/asteroids-game-python/
+from operator import indexOf
 import pygame
 from pygame.math import Vector2
 from pygame.transform import rotozoom, smoothscale
@@ -33,6 +34,12 @@ class GameObject:
         surface.blit(self.sprite, blit_position)
 
     def update(self):
+        if type(self) == Boss:
+            if self.position == Vector2(512,200):
+                self.velocity = Vector2(0,0)
+        if type(self) == Escudos:
+            if self.position == Vector2(572,70):
+                self.velocity = Vector2(0,0)
         self.position = self.position + self.velocity
         # manage out of bounds
         if self.position.x < -self.radius:
@@ -43,6 +50,7 @@ class GameObject:
             self.position.y += self.screen_size.y + self.radius * 2
         elif self.position.y > self.screen_size.y + self.radius:
             self.position.y -= self.screen_size.y + self.radius * 2
+        
 
     def collides_with(self, other_obj):
         distance = self.position.distance_to(other_obj.position)
@@ -56,8 +64,9 @@ class GameObject:
         return self._disabled
 
     def is_out_of_bounds(self):
-        return self.position.x < -self.radius or self.position.x > self.screen_size.x + self.radius or \
-               self.position.y < -self.radius or self.position.y > self.screen_size.y + self.radius
+        if type(self) is not Escudos:
+            return self.position.x < -self.radius or self.position.x > self.screen_size.x + self.radius or \
+                self.position.y < -self.radius or self.position.y > self.screen_size.y + self.radius
 
 
 class Asteroid(GameObject):
@@ -75,6 +84,38 @@ class Asteroid(GameObject):
                          velocity if velocity is not None
                          else Vector2(choice(self.SPEEDS), choice(self.SPEEDS)))
 
+class Asteroid2(GameObject):
+    SPEEDS = [-2, -1.5, -1, 0.5, 0.5, 1, 1.5, 2]
+    MIN_DISTANCE = 2
+
+    def __init__(self, screen_size, position, velocity=None):
+        super().__init__(screen_size,
+                         position,
+                         load_image("asteroid.v3"),
+                         velocity if velocity is not None
+                         else Vector2(choice(self.SPEEDS), choice(self.SPEEDS)))
+
+class Asteroid3(GameObject):
+    SPEEDS = [-2, -1.5, -1, 0.5, 0.5, 1, 1.5, 2]
+    MIN_DISTANCE = 20
+
+    def __init__(self, screen_size, position, velocity=None):
+        super().__init__(screen_size,
+                         position,
+                         load_image("asteroid.v4"),
+                         velocity if velocity is not None
+                         else Vector2(choice(self.SPEEDS), choice(self.SPEEDS)))
+
+class Escudos(GameObject):
+    SPEEDS = [-2, -1.5, -1, 0.5, 0.5, 1, 1.5, 2]
+    MIN_DISTANCE = 20
+
+    def __init__(self, screen_size, position, velocity=None):
+        super().__init__(screen_size,
+                         position,
+                         load_image("asteroid.v3"),
+                         velocity if velocity is not None
+                         else Vector2(3, 1))
 
 class Bullet(GameObject):
     BULLET_SPEED = 6
@@ -137,13 +178,21 @@ class StarShip(GameObject):
         surface.blit(rotated_surface, blit_position)
         self._acceleration = 0
 
+class Boss(GameObject):
+    SPEEDS = [-2, -1.5, -1, 0.5, 0.5, 1, 1.5, 2]
+    def __init__(self, screen_size, position, velocity=None):
+        super().__init__(screen_size,
+                         position,
+                         load_image("Boss"),
+                         velocity if velocity is not None
+                         else Vector2(0, 1))
 
 class Asteroids:
     SIZE = Vector2(1024, 768)  # Display (width, height)
-    MAX_ASTEROIDS = 15
+    MAX_ASTEROIDS = 1
     MUSIC = "music/tota_pop.ogg"
     WINDOW_TITLE = "Albert[A]steroids"
-    BACKGROUND = "class_diagram"
+    BACKGROUND = "background"
     VICTORY_TEXT = "Victory!!!!!!!!!"
     GAME_OVER_TEXT = "Game Over"
 
@@ -169,9 +218,11 @@ class Asteroids:
     def _init_objects(self):
         self._star_ship = StarShip(self.SIZE)
         self._bullets = []
-        self._asteroids = [Asteroid(self.SIZE, self._star_ship)
-                           for _ in range(self.MAX_ASTEROIDS)]
-
+        self._asteroids = []
+        self._boss = Boss(self.SIZE, position=Vector2(512,0), velocity=None)
+        self._escudos = None
+        for _ in range(self.MAX_ASTEROIDS):
+            self._asteroids.append(Asteroid(self.SIZE, self._star_ship))
     def _handle_input(self):
         for event in pygame.event.get():
             if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE):
@@ -194,11 +245,14 @@ class Asteroids:
 
     def _draw(self):
         self._screen.blit(self._background, (0, 0))
-        for asteroid in self._asteroids:
+        for asteroid in self._asteroids: 
             asteroid.draw(self._screen)
         for bullet in self._bullets:
             bullet.draw(self._screen)
         self._star_ship.draw(self._screen)
+        self._boss.draw(self._screen)
+        if self._escudos is not None:
+            self._escudos.draw(self._screen)
         pygame.display.flip()
 
     def _update(self):
@@ -207,12 +261,28 @@ class Asteroids:
         for bullet in self._bullets:
             bullet.update()
         self._star_ship.update()
+        self._boss.update()
+        if self._escudos is not None:
+            self._escudos.update()
+        if self._boss.position == Vector2(512,200) and self._escudos is None:
+            self._escudos = Escudos(self.SIZE, position=Vector2(512,50), velocity=None)
         # collisions
         for asteroid in self._asteroids[:]:
             destroyed = False
             for bullet in self._bullets[:]:
                 if bullet.collides_with(asteroid):
-                    self._asteroids.remove(asteroid)
+                    if type(asteroid) == Asteroid:
+                        posicion = asteroid.position
+                        self._asteroids.remove(asteroid)
+                        self._asteroids.append(Asteroid2(self.SIZE, position = posicion))
+                        self._asteroids.append(Asteroid2(self.SIZE, position = posicion))
+                    elif type(asteroid) == Asteroid2:
+                        posicion = asteroid.position
+                        self._asteroids.remove(asteroid)
+                        self._asteroids.append(Asteroid3(self.SIZE, position = posicion))
+                        self._asteroids.append(Asteroid3(self.SIZE, position = posicion))
+                    else:
+                        self._asteroids.remove(asteroid)
                     self._bullets.remove(bullet)
                     destroyed = True
                     break
