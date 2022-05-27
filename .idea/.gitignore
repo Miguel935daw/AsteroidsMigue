@@ -1,8 +1,8 @@
-# Default ignored files
-/shelf/
-/workspace.xml
-# Datasource local storage ignored files
-/dataSources/
-/dataSources.local.xml
-# Editor-based HTTP Client requests
-/httpRequests/
+/venv/
+/intro_ball.gif
+/asteroids.jpg
+/nearby-stars-copy.jpg
+/steamuserimages-a.akamaihd.net.png
+/music/tota_pop.mp3
+/joker.png
+/images/starship.v2.xcf
