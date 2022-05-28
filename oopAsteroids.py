@@ -1,12 +1,19 @@
 ######
 # Version del tutorial de Real Python: https://realpython.com/asteroids-game-python/
 from operator import indexOf
+from numpy import empty
 import pygame
 from pygame.math import Vector2
 from pygame.transform import rotozoom, smoothscale
 from random import randrange, choice
 from math import copysign
+import random
 
+def buscar_escudo(bulletsEnemigos, escudo):
+    for bullet in bulletsEnemigos:
+        if bullet.escudo == escudo:
+            return False
+    return True
 
 def load_image(filename, with_alpha=True):
     image = pygame.image.load("images/" + filename + ".png")
@@ -37,9 +44,8 @@ class GameObject:
         if type(self) == Boss:
             if self.position == Vector2(512,200):
                 self.velocity = Vector2(0,0)
-        if type(self) == Escudos:
-            if self.position == Vector2(572,70):
-                self.velocity = Vector2(0,0)
+        if type(self) == Escudos and self.is_out_of_bounds():
+            self.position
         self.position = self.position + self.velocity
         # manage out of bounds
         if self.position.x < -self.radius:
@@ -64,9 +70,8 @@ class GameObject:
         return self._disabled
 
     def is_out_of_bounds(self):
-        if type(self) is not Escudos:
-            return self.position.x < -self.radius or self.position.x > self.screen_size.x + self.radius or \
-                self.position.y < -self.radius or self.position.y > self.screen_size.y + self.radius
+        return self.position.x < -self.radius or self.position.x > self.screen_size.x + self.radius or \
+            self.position.y < -self.radius or self.position.y > self.screen_size.y + self.radius
 
 
 class Asteroid(GameObject):
@@ -113,9 +118,9 @@ class Escudos(GameObject):
     def __init__(self, screen_size, position, velocity=None):
         super().__init__(screen_size,
                          position,
-                         load_image("asteroid.v3"),
+                         load_image("escudopng"),
                          velocity if velocity is not None
-                         else Vector2(3, 1))
+                         else Vector2(0, 0))
 
 class Bullet(GameObject):
     BULLET_SPEED = 6
@@ -132,8 +137,25 @@ class Bullet(GameObject):
     def is_disabled(self):
         return self._disabled or self.is_out_of_bounds()
 
+class BulletEnemigo(GameObject):
+    BULLET_SPEED = 3
+    escudo:Escudos
+    def __init__(self, escudo):
+        self.escudo = escudo
+        super().__init__(escudo.screen_size,
+                         escudo.position + Vector2(0,1) * escudo.radius,
+                         load_image("bulletenemigo"),
+                         Vector2(0,1) * self.BULLET_SPEED)
+
+    def update(self):
+        self.position = self.position + self.velocity
+
+    def is_disabled(self):
+        return self._disabled or self.is_out_of_bounds()
+
 
 class StarShip(GameObject):
+    LIVES = 5
     MANEUVERABILITY = 3
     FORCE = 0.1
     SPEED_LIMIT = 3
@@ -179,21 +201,27 @@ class StarShip(GameObject):
         self._acceleration = 0
 
 class Boss(GameObject):
-    SPEEDS = [-2, -1.5, -1, 0.5, 0.5, 1, 1.5, 2]
+    LIVES = 9
+
     def __init__(self, screen_size, position, velocity=None):
         super().__init__(screen_size,
                          position,
                          load_image("Boss"),
                          velocity if velocity is not None
-                         else Vector2(0, 1))
+                         else Vector2(0, 0.5))
 
 class Asteroids:
     SIZE = Vector2(1024, 768)  # Display (width, height)
-    MAX_ASTEROIDS = 1
+    MAX_ASTEROIDS = 15
     MUSIC = "music/tota_pop.ogg"
     WINDOW_TITLE = "Albert[A]steroids"
     BACKGROUND = "background"
     VICTORY_TEXT = "Victory!!!!!!!!!"
+    PHASE1_TEXT = 'PHASE 1 START!!'
+    PHASE1_CLEAR = 'PHASE 1 CLEAR!!'
+    PHASE2_TEXT = 'PHASE 2 START!!'
+    PHASE2_CLEAR = 'PHASE 2 CLEAR!!'
+    FINAL_PHASE_TEXT = 'WARNING FINAL BOSS COMING!!!'
     GAME_OVER_TEXT = "Game Over"
 
     def __init__(self):  # public Asteroids() { ... } en Java - Constructor
@@ -219,9 +247,10 @@ class Asteroids:
         self._star_ship = StarShip(self.SIZE)
         self._bullets = []
         self._asteroids = []
-        self._boss = Boss(self.SIZE, position=Vector2(512,0), velocity=None)
-        self._escudos = None
-        for _ in range(self.MAX_ASTEROIDS):
+        self._boss = None
+        self._escudos = []
+        self._bulletsEnemigos = []
+        for _ in range(5):
             self._asteroids.append(Asteroid(self.SIZE, self._star_ship))
     def _handle_input(self):
         for event in pygame.event.get():
@@ -249,23 +278,50 @@ class Asteroids:
             asteroid.draw(self._screen)
         for bullet in self._bullets:
             bullet.draw(self._screen)
+        
         self._star_ship.draw(self._screen)
-        self._boss.draw(self._screen)
-        if self._escudos is not None:
-            self._escudos.draw(self._screen)
+        if self._boss is not None:
+            self._boss.draw(self._screen)
+        if len(self._escudos) != 0:
+            for escudo in self._escudos:
+                escudo.draw(self._screen)
+            for disparo in self._bulletsEnemigos:
+                disparo.draw(self._screen)
+            
         pygame.display.flip()
 
-    def _update(self):
+    def phase1(self):
         for asteroid in self._asteroids:
             asteroid.update()
         for bullet in self._bullets:
             bullet.update()
         self._star_ship.update()
-        self._boss.update()
-        if self._escudos is not None:
-            self._escudos.update()
-        if self._boss.position == Vector2(512,200) and self._escudos is None:
-            self._escudos = Escudos(self.SIZE, position=Vector2(512,50), velocity=None)
+        # collisions
+        for asteroid in self._asteroids[:]:
+            destroyed = False
+            for bullet in self._bullets[:]:
+                if bullet.collides_with(asteroid):
+                    self._asteroids.remove(asteroid)
+                    self._bullets.remove(bullet)
+                    destroyed = True
+                    break
+            if not destroyed and asteroid.collides_with(self._star_ship):
+                self._star_ship.LIVES-=1
+                self._star_ship.position=Vector2(512,384)
+                if self._star_ship.LIVES==0:
+                    self._star_ship.disable()
+                    break
+        # clear out of bounds bullets
+        for bullet in self._bullets[:]:
+            if bullet.is_out_of_bounds():
+                self._bullets.remove(bullet)
+
+    def phase2(self):
+        for asteroid in self._asteroids:
+            asteroid.update()
+        for bullet in self._bullets:
+            bullet.update()
+        self._star_ship.update()
         # collisions
         for asteroid in self._asteroids[:]:
             destroyed = False
@@ -287,27 +343,121 @@ class Asteroids:
                     destroyed = True
                     break
             if not destroyed and asteroid.collides_with(self._star_ship):
-                self._star_ship.disable()
-                break
+                self._star_ship.LIVES-=1
+                self._star_ship.position=Vector2(512,384)
+                if self._star_ship.LIVES==0:
+                    self._star_ship.disable()
+                    break
         # clear out of bounds bullets
         for bullet in self._bullets[:]:
             if bullet.is_out_of_bounds():
                 self._bullets.remove(bullet)
+    
+    def boss_phase(self):
+        for bullet in self._bullets:
+            bullet.update()
+        for bullet in self._bulletsEnemigos:
+            bullet.update()
+        self._star_ship.update()
+        escudos = [Escudos(self.SIZE, position=Vector2(512,50), velocity=None),
+                    Escudos(self.SIZE, position=Vector2(512,300), velocity=None),
+                    Escudos(self.SIZE, position=Vector2(452,70), velocity=None),
+                    Escudos(self.SIZE, position=Vector2(452,280), velocity=None),
+                    Escudos(self.SIZE, position=Vector2(392,110), velocity=None),
+                    Escudos(self.SIZE, position=Vector2(392,240), velocity=None),
+                    Escudos(self.SIZE, position=Vector2(332,150), velocity=None),
+                    Escudos(self.SIZE, position=Vector2(332,200), velocity=None),
+                    Escudos(self.SIZE, position=Vector2(572,70), velocity=None),
+                    Escudos(self.SIZE, position=Vector2(572,280), velocity=None),
+                    Escudos(self.SIZE, position=Vector2(632,110), velocity=None),
+                    Escudos(self.SIZE, position=Vector2(632,240), velocity=None),
+                    Escudos(self.SIZE, position=Vector2(692,150), velocity=None),
+                    Escudos(self.SIZE, position=Vector2(692,200), velocity=None)]
+        
+        for escudo in self._escudos:
+            destroyed = False
+            for bullet in self._bullets[:]:
+                if bullet.collides_with(escudo):
+                    self._escudos.remove(escudo)
+                    self._bullets.remove(bullet)
+                    destroyed = True
+                    break
+            if not destroyed and escudo.collides_with(self._star_ship):
+                self._star_ship.LIVES-=1
+                self._star_ship.position=Vector2(512,384)
+                if self._star_ship.LIVES==0:
+                    self._star_ship.disabled()
+                    break
+        if self._boss:
+            for bullet in self._bullets[:]:
+                if bullet.collides_with(self._boss):
+                    self._boss.LIVES-=1
+                    self._bullets.remove(bullet)
+                if self._boss.LIVES == 0: 
+                    break
+        for bullet in self._bulletsEnemigos:
+            bullet.update()
+            if bullet.is_out_of_bounds():
+                self._bulletsEnemigos.remove(bullet)
+        for bullet in self._bullets:
+            bullet.update()
+            if bullet.is_out_of_bounds():
+                self._bullets.remove(bullet)
+        self._boss.update()
+        for escudo in self._escudos:
+            escudo.update()
+        if self._boss.position == Vector2(512,200) and len(self._escudos) == 0:
+            self._escudos.extend(escudos)
+        for escudo in self._escudos:
+            if escudo.position.y>=200 and len(self._bulletsEnemigos)-1<7:
+                if buscar_escudo(self._bulletsEnemigos,escudo):
+                    self._bulletsEnemigos.append(BulletEnemigo(escudo))
 
+        for bullet in self._bullets[:]:
+            if bullet.is_out_of_bounds():
+                self._bullets.remove(bullet)
     def mainloop(self):
         clock = pygame.time.Clock()
         while True:
+            '''
             while True:
                 # manage input from keyboard
                 self._handle_input()
                 # update
-                self._update()
+                self.phase1()
                 # draw (double buffer by PyGame)
                 self._draw()
                 # time sync 60fps
                 clock.tick(60)
                 # when self._asteroids is empty, self._asteroids == False
                 if self._star_ship.is_disabled() or not self._asteroids:
+                    break
+            while True:
+                self._handle_input()
+                if not self._asteroids:
+                    for _ in range(2):
+                        self._asteroids.append(Asteroid(self.SIZE, self._star_ship))
+                self.phase2()
+                self._draw()
+                # time sync 60fps
+                clock.tick(60)
+                if self._star_ship.is_disabled() or not self._asteroids:
+                    break
+            '''
+            self.MUSIC = 'music/bossmusic.ogg'
+            pygame.mixer.init()
+            pygame.mixer.music.load(self.MUSIC)
+            # loops=-1 for infinite playing
+            pygame.mixer.music.play(loops=-1)
+            while True:
+                self._handle_input()
+                if self._boss is None:
+                    self._boss = Boss(self.SIZE, position=Vector2(512,-50), velocity=None)
+                self.boss_phase()
+                self._draw()
+                # time sync 60fps
+                clock.tick(60)
+                if self._star_ship.is_disabled() or self._boss.LIVES==0:
                     break
             # process endgame or restart
             message = self.GAME_OVER_TEXT if self._star_ship.is_disabled() else self.VICTORY_TEXT
