@@ -7,7 +7,6 @@ from pygame.math import Vector2
 from pygame.transform import rotozoom, smoothscale
 from random import randrange, choice
 from math import copysign
-import random
 
 def buscar_escudo(bulletsEnemigos, escudo):
     for bullet in bulletsEnemigos:
@@ -154,8 +153,9 @@ class BulletEnemigo(GameObject):
         return self._disabled or self.is_out_of_bounds()
 
 
+
 class StarShip(GameObject):
-    LIVES = 5
+    LIVES = 3
     MANEUVERABILITY = 3
     FORCE = 0.1
     SPEED_LIMIT = 3
@@ -200,8 +200,29 @@ class StarShip(GameObject):
         surface.blit(rotated_surface, blit_position)
         self._acceleration = 0
 
+class PlayerLifes(GameObject):
+    SPRITES = {3 : "PlayerLife3",
+               2 : "PlayerLife2",
+               1 : "PlayerLife1",
+               0 : "PlayerLife0"
+               }
+    player: StarShip
+    def __init__(self, screen_size, player):
+        self.player = player
+        super().__init__(screen_size,
+                          Vector2(70,80),
+                         load_image(self.SPRITES.get(3)),
+                         Vector2(0))
+    def life_update(self):
+        if self.player.LIVES == 2:
+            self.sprite = load_image(self.SPRITES.get(2))
+        if self.player.LIVES == 1:
+           self.sprite = load_image(self.SPRITES.get(1))
+        if self.player.LIVES == 0:
+           self.sprite = load_image(self.SPRITES.get(0))
+
 class Boss(GameObject):
-    LIVES = 9
+    LIVES = 6
 
     def __init__(self, screen_size, position, velocity=None):
         super().__init__(screen_size,
@@ -209,6 +230,36 @@ class Boss(GameObject):
                          load_image("Boss"),
                          velocity if velocity is not None
                          else Vector2(0, 0.5))
+
+class BossLife(GameObject):
+    SPRITES = {6 : "BossLife6",
+               5 : "BossLife5",
+               4 : "BossLife4",
+               3 : "BossLife3",
+               2 : "BossLife2",
+               1 : "BossLife1",
+               0 : "BossLife0"
+               }
+    boss:Boss
+    def __init__(self, screen_size, boss):
+        self.boss = boss
+        super().__init__(screen_size,
+                          Vector2(512,650),
+                         load_image(self.SPRITES.get(6)),
+                         Vector2(0))
+    def life_update(self):
+        if self.boss.LIVES == 5:
+            self.sprite = load_image(self.SPRITES.get(5))
+        if self.boss.LIVES == 4:
+           self.sprite = load_image(self.SPRITES.get(4))
+        if self.boss.LIVES == 3:
+           self.sprite = load_image(self.SPRITES.get(3))
+        if self.boss.LIVES == 2:
+            self.sprite = load_image(self.SPRITES.get(2))
+        if self.boss.LIVES == 1:
+           self.sprite = load_image(self.SPRITES.get(1))
+        if self.boss.LIVES == 0:
+           self.sprite = load_image(self.SPRITES.get(0))
 
 class Asteroids:
     SIZE = Vector2(1024, 768)  # Display (width, height)
@@ -245,9 +296,11 @@ class Asteroids:
 
     def _init_objects(self):
         self._star_ship = StarShip(self.SIZE)
+        self._playerLife = PlayerLifes(self.SIZE,player = self._star_ship)
         self._bullets = []
         self._asteroids = []
         self._boss = None
+        self._bossLife = None
         self._escudos = []
         self._bulletsEnemigos = []
         for _ in range(5):
@@ -278,10 +331,14 @@ class Asteroids:
             asteroid.draw(self._screen)
         for bullet in self._bullets:
             bullet.draw(self._screen)
-        
+        self._playerLife.draw(self._screen)
+        self._playerLife.life_update()
         self._star_ship.draw(self._screen)
         if self._boss is not None:
             self._boss.draw(self._screen)
+        if self._bossLife is not None:
+            self._bossLife.draw(self._screen)
+            self._bossLife.life_update()
         if len(self._escudos) != 0:
             for escudo in self._escudos:
                 escudo.draw(self._screen)
@@ -386,7 +443,7 @@ class Asteroids:
                 self._star_ship.LIVES-=1
                 self._star_ship.position=Vector2(512,384)
                 if self._star_ship.LIVES==0:
-                    self._star_ship.disabled()
+                    self._star_ship.disable()
                     break
         if self._boss:
             for bullet in self._bullets[:]:
@@ -408,6 +465,7 @@ class Asteroids:
             escudo.update()
         if self._boss.position == Vector2(512,200) and len(self._escudos) == 0:
             self._escudos.extend(escudos)
+            self._bossLife = BossLife(self._screen,self._boss)
         for escudo in self._escudos:
             if escudo.position.y>=200 and len(self._bulletsEnemigos)-1<7:
                 if buscar_escudo(self._bulletsEnemigos,escudo):
@@ -443,7 +501,7 @@ class Asteroids:
                 clock.tick(60)
                 if self._star_ship.is_disabled() or not self._asteroids:
                     break
-            '''
+                '''
             self.MUSIC = 'music/bossmusic.ogg'
             pygame.mixer.init()
             pygame.mixer.music.load(self.MUSIC)
