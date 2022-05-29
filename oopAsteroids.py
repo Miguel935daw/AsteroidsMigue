@@ -1,7 +1,5 @@
 ######
 # Version del tutorial de Real Python: https://realpython.com/asteroids-game-python/
-from operator import indexOf
-from numpy import empty
 import pygame
 from pygame.math import Vector2
 from pygame.transform import rotozoom, smoothscale
@@ -41,10 +39,14 @@ class GameObject:
 
     def update(self):
         if type(self) == Boss:
-            if self.position == Vector2(512,200):
-                self.velocity = Vector2(0,0)
-        if type(self) == Escudos and self.is_out_of_bounds():
-            self.position
+            if self.position == Vector2(512,200) and self.fight:
+                self.velocity = Vector2(-1,0)
+                self.fight = False
+            if self.position == Vector2(512,200) - Vector2(312,0)  or self.position == Vector2(512,200) + Vector2(312,0):
+                self.velocity = self.velocity * -1
+        if type(self) == Escudos:
+            if self.position == self.POSICION_ORIGINAL - Vector2(312,0) or self.position == self.POSICION_ORIGINAL + Vector2(312,0):
+                self.velocity = self.velocity * -1
         self.position = self.position + self.velocity
         # manage out of bounds
         if self.position.x < -self.radius:
@@ -72,8 +74,10 @@ class GameObject:
         return self.position.x < -self.radius or self.position.x > self.screen_size.x + self.radius or \
             self.position.y < -self.radius or self.position.y > self.screen_size.y + self.radius
 
-
-class Asteroid(GameObject):
+'''***************************************************************************
+   *****                    TIPOS DE ASTEROIDE                          ******
+   ***************************************************************************'''
+class Asteroid(GameObject): #Asteroide Normal
     SPEEDS = [-2, -1.5, -1, 0.5, 0.5, 1, 1.5, 2]
     MIN_DISTANCE = 20
 
@@ -88,7 +92,7 @@ class Asteroid(GameObject):
                          velocity if velocity is not None
                          else Vector2(choice(self.SPEEDS), choice(self.SPEEDS)))
 
-class Asteroid2(GameObject):
+class Asteroid2(GameObject): #Asteroide Mediano
     SPEEDS = [-2, -1.5, -1, 0.5, 0.5, 1, 1.5, 2]
     MIN_DISTANCE = 2
 
@@ -99,7 +103,7 @@ class Asteroid2(GameObject):
                          velocity if velocity is not None
                          else Vector2(choice(self.SPEEDS), choice(self.SPEEDS)))
 
-class Asteroid3(GameObject):
+class Asteroid3(GameObject): #Asteroide Pequeño
     SPEEDS = [-2, -1.5, -1, 0.5, 0.5, 1, 1.5, 2]
     MIN_DISTANCE = 20
 
@@ -109,22 +113,17 @@ class Asteroid3(GameObject):
                          load_image("asteroid.v4"),
                          velocity if velocity is not None
                          else Vector2(choice(self.SPEEDS), choice(self.SPEEDS)))
-
-class Escudos(GameObject):
-    SPEEDS = [-2, -1.5, -1, 0.5, 0.5, 1, 1.5, 2]
-    MIN_DISTANCE = 20
-
-    def __init__(self, screen_size, position, velocity=None):
-        super().__init__(screen_size,
-                         position,
-                         load_image("escudopng"),
-                         velocity if velocity is not None
-                         else Vector2(0, 0))
+'''****************************************************************
+   *****                    JUGADOR                          ******
+   ****************************************************************'''
 
 class Bullet(GameObject):
     BULLET_SPEED = 6
-
+    IDENTIFICADOR = 21
     def __init__(self, star_ship):
+        self.IDENTIFICADOR+=1
+        if self.IDENTIFICADOR ==40:
+            self.IDENTIFICADOR=21
         super().__init__(star_ship.screen_size,
                          star_ship.position + star_ship.direction * star_ship.radius,
                          load_image("bullet"),
@@ -136,24 +135,6 @@ class Bullet(GameObject):
     def is_disabled(self):
         return self._disabled or self.is_out_of_bounds()
 
-class BulletEnemigo(GameObject):
-    BULLET_SPEED = 3
-    escudo:Escudos
-    def __init__(self, escudo):
-        self.escudo = escudo
-        super().__init__(escudo.screen_size,
-                         escudo.position + Vector2(0,1) * escudo.radius,
-                         load_image("bulletenemigo"),
-                         Vector2(0,1) * self.BULLET_SPEED)
-
-    def update(self):
-        self.position = self.position + self.velocity
-
-    def is_disabled(self):
-        return self._disabled or self.is_out_of_bounds()
-
-
-
 class StarShip(GameObject):
     LIVES = 3
     MANEUVERABILITY = 3
@@ -163,6 +144,7 @@ class StarShip(GameObject):
                "thrust": "star_ship.v2.thrust",
                "brake": "star_ship.v2.brake",
                }
+    INMUNITY = 0
 
     def __init__(self, screen_size):
         super().__init__(screen_size,
@@ -221,9 +203,45 @@ class PlayerLifes(GameObject):
         if self.player.LIVES == 0:
            self.sprite = load_image(self.SPRITES.get(0))
 
+'''************************************************************
+   ********            FINAL BOSS                   ***********
+   ************************************************************'''
+
+class Escudos(GameObject): #Escudos del Boss
+    SPEEDS = [-2, -1.5, -1, 0.5, 0.5, 1, 1.5, 2]
+    MIN_DISTANCE = 20
+    POSICION_ORIGINAL = None
+    IDENTIFICADOR = 4
+    def __init__(self, screen_size, position, velocity=None):
+        self.IDENTIFICADOR+=1
+        if self.IDENTIFICADOR ==20:
+            self.IDENTIFICADOR=4
+        self.POSICION_ORIGINAL = position
+        super().__init__(screen_size,
+                         position,
+                         load_image("escudopng"),
+                         velocity if velocity is not None
+                         else Vector2(-1, 0))
+
+class BulletEnemigo(GameObject):
+    BULLET_SPEED = 3
+    escudo:Escudos
+    def __init__(self, escudo):
+        self.escudo = escudo
+        super().__init__(escudo.screen_size,
+                         escudo.position + Vector2(0,1) * escudo.radius,
+                         load_image("bulletenemigo"),
+                         Vector2(0,1) * self.BULLET_SPEED)
+
+    def update(self):
+        self.position = self.position + self.velocity
+
+    def is_disabled(self):
+        return self._disabled or self.is_out_of_bounds()
+
 class Boss(GameObject):
     LIVES = 6
-
+    fight = True
     def __init__(self, screen_size, position, velocity=None):
         super().__init__(screen_size,
                          position,
@@ -241,6 +259,7 @@ class BossLife(GameObject):
                0 : "BossLife0"
                }
     boss:Boss
+    
     def __init__(self, screen_size, boss):
         self.boss = boss
         super().__init__(screen_size,
@@ -261,9 +280,12 @@ class BossLife(GameObject):
         if self.boss.LIVES == 0:
            self.sprite = load_image(self.SPRITES.get(0))
 
+''' ******************************************************
+    ********                JUEGO                 ********
+    ******************************************************'''
 class Asteroids:
     SIZE = Vector2(1024, 768)  # Display (width, height)
-    MAX_ASTEROIDS = 15
+    MAX_ASTEROIDS = 10
     MUSIC = "music/tota_pop.ogg"
     WINDOW_TITLE = "Albert[A]steroids"
     BACKGROUND = "background"
@@ -281,9 +303,12 @@ class Asteroids:
     def _init_game(self):
         pygame.init()
         pygame.mixer.init()
-        pygame.mixer.music.load(self.MUSIC)
+        pygame.mixer.set_num_channels(41)
+        pygame.mixer.Channel(1).set_volume(0.1)
+        pygame.mixer.Channel(2).set_volume(0.1)
+        pygame.mixer.Channel(3).set_volume(0.1)
         # loops=-1 for infinite playing
-        pygame.mixer.music.play(loops=-1)
+        pygame.mixer.Channel(1).play(pygame.mixer.Sound(self.MUSIC),-1)
         pygame.display.set_caption(self.WINDOW_TITLE)
         # when attribute name starts with _ (underscore), marks that attribute as protected
         self._font = pygame.font.Font(None, 64)
@@ -303,7 +328,7 @@ class Asteroids:
         self._bossLife = None
         self._escudos = []
         self._bulletsEnemigos = []
-        for _ in range(5):
+        for _ in range(self.MAX_ASTEROIDS):
             self._asteroids.append(Asteroid(self.SIZE, self._star_ship))
     def _handle_input(self):
         for event in pygame.event.get():
@@ -311,6 +336,7 @@ class Asteroids:
                 quit()
             # shoot when press space
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
+                pygame.mixer.Channel(2).play(pygame.mixer.Sound('music/PlayerShot.ogg'))
                 self._bullets.append(Bullet(self._star_ship))
 
         is_key_pressed = pygame.key.get_pressed()
@@ -358,16 +384,21 @@ class Asteroids:
             destroyed = False
             for bullet in self._bullets[:]:
                 if bullet.collides_with(asteroid):
+                    pygame.mixer.Channel(2).play(pygame.mixer.Sound('music/AsteroidSound.ogg'))
                     self._asteroids.remove(asteroid)
                     self._bullets.remove(bullet)
                     destroyed = True
                     break
-            if not destroyed and asteroid.collides_with(self._star_ship):
+            if not destroyed and asteroid.collides_with(self._star_ship) and self._star_ship.INMUNITY==0:
                 self._star_ship.LIVES-=1
-                self._star_ship.position=Vector2(512,384)
+                self._star_ship.INMUNITY+=1
                 if self._star_ship.LIVES==0:
                     self._star_ship.disable()
                     break
+            if self._star_ship.INMUNITY>0:
+                self._star_ship.INMUNITY+=1
+                if self._star_ship.INMUNITY==1000:
+                    self._star_ship.INMUNITY=0
         # clear out of bounds bullets
         for bullet in self._bullets[:]:
             if bullet.is_out_of_bounds():
@@ -386,25 +417,32 @@ class Asteroids:
                 if bullet.collides_with(asteroid):
                     if type(asteroid) == Asteroid:
                         posicion = asteroid.position
+                        pygame.mixer.Channel(2).play(pygame.mixer.Sound('music/AsteroidSound.ogg'))
                         self._asteroids.remove(asteroid)
                         self._asteroids.append(Asteroid2(self.SIZE, position = posicion))
                         self._asteroids.append(Asteroid2(self.SIZE, position = posicion))
                     elif type(asteroid) == Asteroid2:
                         posicion = asteroid.position
+                        pygame.mixer.Channel(2).play(pygame.mixer.Sound('music/AsteroidSound.ogg'))
                         self._asteroids.remove(asteroid)
                         self._asteroids.append(Asteroid3(self.SIZE, position = posicion))
                         self._asteroids.append(Asteroid3(self.SIZE, position = posicion))
                     else:
+                        pygame.mixer.Channel(2).play(pygame.mixer.Sound('music/AsteroidSound.ogg'))
                         self._asteroids.remove(asteroid)
                     self._bullets.remove(bullet)
                     destroyed = True
                     break
-            if not destroyed and asteroid.collides_with(self._star_ship):
+            if not destroyed and asteroid.collides_with(self._star_ship) and self._star_ship.INMUNITY==0:
                 self._star_ship.LIVES-=1
-                self._star_ship.position=Vector2(512,384)
+                self._star_ship.INMUNITY+=1
                 if self._star_ship.LIVES==0:
                     self._star_ship.disable()
                     break
+            if self._star_ship.INMUNITY>0:
+                self._star_ship.INMUNITY+=1
+                if self._star_ship.INMUNITY==1000:
+                    self._star_ship.INMUNITY=0
         # clear out of bounds bullets
         for bullet in self._bullets[:]:
             if bullet.is_out_of_bounds():
@@ -415,6 +453,17 @@ class Asteroids:
             bullet.update()
         for bullet in self._bulletsEnemigos:
             bullet.update()
+            if bullet.collides_with(self._star_ship) and self._star_ship.INMUNITY==0:
+                self._star_ship.LIVES-=1
+                self._star_ship.INMUNITY+=1
+                if self._star_ship.LIVES==0:
+                    self._star_ship.disable()
+                    break
+            if self._star_ship.INMUNITY>0:
+                self._star_ship.INMUNITY+=1
+                if self._star_ship.INMUNITY==1000:
+                    self._star_ship.INMUNITY=0
+
         self._star_ship.update()
         escudos = [Escudos(self.SIZE, position=Vector2(512,50), velocity=None),
                     Escudos(self.SIZE, position=Vector2(512,300), velocity=None),
@@ -435,19 +484,25 @@ class Asteroids:
             destroyed = False
             for bullet in self._bullets[:]:
                 if bullet.collides_with(escudo):
+                    pygame.mixer.Channel(2).play(pygame.mixer.Sound('music/AsteroidSound.ogg'))
                     self._escudos.remove(escudo)
                     self._bullets.remove(bullet)
                     destroyed = True
                     break
-            if not destroyed and escudo.collides_with(self._star_ship):
+            if not destroyed and escudo.collides_with(self._star_ship) and self._star_ship.INMUNITY==0:
                 self._star_ship.LIVES-=1
-                self._star_ship.position=Vector2(512,384)
+                self._star_ship.INMUNITY+=1
                 if self._star_ship.LIVES==0:
                     self._star_ship.disable()
                     break
+            if self._star_ship.INMUNITY>0:
+                self._star_ship.INMUNITY+=1
+                if self._star_ship.INMUNITY==1000:
+                    self._star_ship.INMUNITY=0
         if self._boss:
             for bullet in self._bullets[:]:
-                if bullet.collides_with(self._boss):
+                if bullet.collides_with(self._boss) and self._boss.position.y==200:
+                    pygame.mixer.Channel(2).play(pygame.mixer.Sound('music/AsteroidSound.ogg'))
                     self._boss.LIVES-=1
                     self._bullets.remove(bullet)
                 if self._boss.LIVES == 0: 
@@ -469,6 +524,8 @@ class Asteroids:
         for escudo in self._escudos:
             if escudo.position.y>=200 and len(self._bulletsEnemigos)-1<7:
                 if buscar_escudo(self._bulletsEnemigos,escudo):
+                    pygame.mixer.Channel(escudo.IDENTIFICADOR).set_volume(0.1)
+                    pygame.mixer.Channel(escudo.IDENTIFICADOR).play(pygame.mixer.Sound('music/BossShot.ogg'))
                     self._bulletsEnemigos.append(BulletEnemigo(escudo))
 
         for bullet in self._bullets[:]:
@@ -477,7 +534,6 @@ class Asteroids:
     def mainloop(self):
         clock = pygame.time.Clock()
         while True:
-            '''
             while True:
                 # manage input from keyboard
                 self._handle_input()
@@ -490,33 +546,34 @@ class Asteroids:
                 # when self._asteroids is empty, self._asteroids == False
                 if self._star_ship.is_disabled() or not self._asteroids:
                     break
-            while True:
-                self._handle_input()
-                if not self._asteroids:
-                    for _ in range(2):
-                        self._asteroids.append(Asteroid(self.SIZE, self._star_ship))
-                self.phase2()
-                self._draw()
-                # time sync 60fps
-                clock.tick(60)
-                if self._star_ship.is_disabled() or not self._asteroids:
-                    break
-                '''
-            self.MUSIC = 'music/bossmusic.ogg'
-            pygame.mixer.init()
-            pygame.mixer.music.load(self.MUSIC)
-            # loops=-1 for infinite playing
-            pygame.mixer.music.play(loops=-1)
-            while True:
-                self._handle_input()
-                if self._boss is None:
-                    self._boss = Boss(self.SIZE, position=Vector2(512,-50), velocity=None)
-                self.boss_phase()
-                self._draw()
-                # time sync 60fps
-                clock.tick(60)
-                if self._star_ship.is_disabled() or self._boss.LIVES==0:
-                    break
+            if not self._star_ship.is_disabled():
+                while True:
+                    self._handle_input()
+                    if not self._asteroids:
+                        for _ in range(5):
+                            self._asteroids.append(Asteroid(self.SIZE, self._star_ship))
+                    self.phase2()
+                    self._draw()
+                    # time sync 60fps
+                    clock.tick(60)
+                    if self._star_ship.is_disabled() or not self._asteroids:
+                        break
+                if not self._star_ship.is_disabled():
+                    self.MUSIC = 'music/bossmusic.ogg'
+                    pygame.mixer.init()
+                    pygame.mixer.music.load(self.MUSIC)
+                    # loops=-1 for infinite playing
+                    pygame.mixer.Channel(1).play(pygame.mixer.Sound(self.MUSIC),-1)
+                    while True:
+                        self._handle_input()
+                        if self._boss is None:
+                            self._boss = Boss(self.SIZE, position=Vector2(512,-80), velocity=None)
+                        self.boss_phase()
+                        self._draw()
+                        # time sync 60fps
+                        clock.tick(60)
+                        if self._star_ship.is_disabled() or self._boss.LIVES==0:
+                            break
             # process endgame or restart
             message = self.GAME_OVER_TEXT if self._star_ship.is_disabled() else self.VICTORY_TEXT
             print_text(self._screen, message, self._font)
@@ -530,6 +587,7 @@ class Asteroids:
                     elif event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
                         self._init_objects()
                         restart = True
+                        self.MUSIC = 'music/tota_pop.ogg'
                 if restart:
                     break
 
